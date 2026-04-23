@@ -1,0 +1,48 @@
+[
+  {
+    "id": 1,
+    "title": "Buy groceries",
+    "isDone": true,
+    "priority": 0,
+    "dueDate": "2026-04-25"
+  },
+  {
+    "id": 3,
+    "title": "Read a book",
+    "isDone": false,
+    "priority": 2
+  },
+  {
+    "id": 4,
+    "title": "Buy groceries",
+    "isDone": false,
+    "priority": 0,
+    "dueDate": "2026-04-25"
+  },
+  {
+    "id": 5,
+    "title": "Walk the dog",
+    "isDone": false,
+    "priority": 1
+  },
+  {
+    "id": 6,
+    "title": "Read a book",
+    "isDone": false,
+    "priority": 2
+  },
+  {
+    "id": 7,
+    "title": "Learn Express",
+    "isDone": false,
+    "priority": 1,
+    "dueDate": "2026-05-01"
+  },
+  {
+    "id": 8,
+    "title": "Learn Express",
+    "isDone": false,
+    "priority": 1,
+    "dueDate": "2026-05-01"
+  }
+]
