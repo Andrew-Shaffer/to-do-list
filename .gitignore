@@ -1,8 +1,15 @@
 node_modules/
 .DS_Store
 
+# Environment variables — never commit credentials
+.env
+
 # TypeScript compiled output
 src/**/*.js
 src/**/*.js.map
 src/**/*.d.ts
 src/**/*.d.ts.map
+prisma.config.js
+prisma.config.js.map
+prisma.config.d.ts
+prisma.config.d.ts.map

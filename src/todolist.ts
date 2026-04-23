@@ -1,3 +1,4 @@
+/*
 import type { Todo, ID } from "./types.js";
 import { Priority } from "./types.js";  // enum — exists at runtime
 import { findById } from "./utils.js";  // function — exists at runtime
@@ -66,3 +67,4 @@ export class TodoList {
       : 1;
   }
 }
+*/

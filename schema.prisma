@@ -1,0 +1,22 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "./generated"
+}
+
+model Todo {
+  id        Int      @id @default(autoincrement())
+  title     String
+  isDone    Boolean  @default(false)
+  priority  Priority @default(Medium)
+  dueDate   String?
+}
+
+enum Priority {
+  High
+  Medium
+  Low
+}
