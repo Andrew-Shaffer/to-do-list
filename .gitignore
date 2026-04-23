@@ -1,2 +1,8 @@
 node_modules/
 .DS_Store
+
+# TypeScript compiled output
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts
+src/**/*.d.ts.map
