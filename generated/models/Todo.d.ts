@@ -24,14 +24,14 @@ export type TodoMinAggregateOutputType = {
     title: string | null;
     isDone: boolean | null;
     priority: $Enums.Priority | null;
-    dueDate: string | null;
+    dueDate: Date | null;
 };
 export type TodoMaxAggregateOutputType = {
     id: number | null;
     title: string | null;
     isDone: boolean | null;
     priority: $Enums.Priority | null;
-    dueDate: string | null;
+    dueDate: Date | null;
 };
 export type TodoCountAggregateOutputType = {
     id: number;
@@ -150,7 +150,7 @@ export type TodoGroupByOutputType = {
     title: string;
     isDone: boolean;
     priority: $Enums.Priority;
-    dueDate: string | null;
+    dueDate: Date | null;
     _count: TodoCountAggregateOutputType | null;
     _avg: TodoAvgAggregateOutputType | null;
     _sum: TodoSumAggregateOutputType | null;
@@ -168,7 +168,7 @@ export type TodoWhereInput = {
     title?: Prisma.StringFilter<"Todo"> | string;
     isDone?: Prisma.BoolFilter<"Todo"> | boolean;
     priority?: Prisma.EnumPriorityFilter<"Todo"> | $Enums.Priority;
-    dueDate?: Prisma.StringNullableFilter<"Todo"> | string | null;
+    dueDate?: Prisma.DateTimeNullableFilter<"Todo"> | Date | string | null;
 };
 export type TodoOrderByWithRelationInput = {
     id?: Prisma.SortOrder;
@@ -185,7 +185,7 @@ export type TodoWhereUniqueInput = Prisma.AtLeast<{
     title?: Prisma.StringFilter<"Todo"> | string;
     isDone?: Prisma.BoolFilter<"Todo"> | boolean;
     priority?: Prisma.EnumPriorityFilter<"Todo"> | $Enums.Priority;
-    dueDate?: Prisma.StringNullableFilter<"Todo"> | string | null;
+    dueDate?: Prisma.DateTimeNullableFilter<"Todo"> | Date | string | null;
 }, "id">;
 export type TodoOrderByWithAggregationInput = {
     id?: Prisma.SortOrder;
@@ -207,53 +207,53 @@ export type TodoScalarWhereWithAggregatesInput = {
     title?: Prisma.StringWithAggregatesFilter<"Todo"> | string;
     isDone?: Prisma.BoolWithAggregatesFilter<"Todo"> | boolean;
     priority?: Prisma.EnumPriorityWithAggregatesFilter<"Todo"> | $Enums.Priority;
-    dueDate?: Prisma.StringNullableWithAggregatesFilter<"Todo"> | string | null;
+    dueDate?: Prisma.DateTimeNullableWithAggregatesFilter<"Todo"> | Date | string | null;
 };
 export type TodoCreateInput = {
     title: string;
     isDone?: boolean;
     priority?: $Enums.Priority;
-    dueDate?: string | null;
+    dueDate?: Date | string | null;
 };
 export type TodoUncheckedCreateInput = {
     id?: number;
     title: string;
     isDone?: boolean;
     priority?: $Enums.Priority;
-    dueDate?: string | null;
+    dueDate?: Date | string | null;
 };
 export type TodoUpdateInput = {
     title?: Prisma.StringFieldUpdateOperationsInput | string;
     isDone?: Prisma.BoolFieldUpdateOperationsInput | boolean;
     priority?: Prisma.EnumPriorityFieldUpdateOperationsInput | $Enums.Priority;
-    dueDate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+    dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
 };
 export type TodoUncheckedUpdateInput = {
     id?: Prisma.IntFieldUpdateOperationsInput | number;
     title?: Prisma.StringFieldUpdateOperationsInput | string;
     isDone?: Prisma.BoolFieldUpdateOperationsInput | boolean;
     priority?: Prisma.EnumPriorityFieldUpdateOperationsInput | $Enums.Priority;
-    dueDate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+    dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
 };
 export type TodoCreateManyInput = {
     id?: number;
     title: string;
     isDone?: boolean;
     priority?: $Enums.Priority;
-    dueDate?: string | null;
+    dueDate?: Date | string | null;
 };
 export type TodoUpdateManyMutationInput = {
     title?: Prisma.StringFieldUpdateOperationsInput | string;
     isDone?: Prisma.BoolFieldUpdateOperationsInput | boolean;
     priority?: Prisma.EnumPriorityFieldUpdateOperationsInput | $Enums.Priority;
-    dueDate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+    dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
 };
 export type TodoUncheckedUpdateManyInput = {
     id?: Prisma.IntFieldUpdateOperationsInput | number;
     title?: Prisma.StringFieldUpdateOperationsInput | string;
     isDone?: Prisma.BoolFieldUpdateOperationsInput | boolean;
     priority?: Prisma.EnumPriorityFieldUpdateOperationsInput | $Enums.Priority;
-    dueDate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+    dueDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
 };
 export type TodoCountOrderByAggregateInput = {
     id?: Prisma.SortOrder;
@@ -291,8 +291,8 @@ export type BoolFieldUpdateOperationsInput = {
 export type EnumPriorityFieldUpdateOperationsInput = {
     set?: $Enums.Priority;
 };
-export type NullableStringFieldUpdateOperationsInput = {
-    set?: string | null;
+export type NullableDateTimeFieldUpdateOperationsInput = {
+    set?: Date | string | null;
 };
 export type IntFieldUpdateOperationsInput = {
     set?: number;
@@ -338,7 +338,7 @@ export type $TodoPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
         title: string;
         isDone: boolean;
         priority: $Enums.Priority;
-        dueDate: string | null;
+        dueDate: Date | null;
     }, ExtArgs["result"]["todo"]>;
     composites: {};
 };
@@ -697,7 +697,7 @@ export interface TodoFieldRefs {
     readonly title: Prisma.FieldRef<"Todo", 'String'>;
     readonly isDone: Prisma.FieldRef<"Todo", 'Boolean'>;
     readonly priority: Prisma.FieldRef<"Todo", 'Priority'>;
-    readonly dueDate: Prisma.FieldRef<"Todo", 'String'>;
+    readonly dueDate: Prisma.FieldRef<"Todo", 'DateTime'>;
 }
 /**
  * Todo findUnique

@@ -3,6 +3,7 @@ node_modules/
 
 # Environment variables — never commit credentials
 .env
+.env.*
 
 # TypeScript compiled output
 src/**/*.js

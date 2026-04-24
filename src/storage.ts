@@ -1,6 +1,7 @@
+/*
 import { readFile, writeFile } from "fs/promises";
 import type { Todo } from "./types.js";
-/*
+
 const FILE_PATH = "todos.json";
 
 export async function loadTodos(): Promise<Todo[]> {

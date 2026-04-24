@@ -12,7 +12,7 @@ model Todo {
   title     String
   isDone    Boolean  @default(false)
   priority  Priority @default(Medium)
-  dueDate   String?
+  dueDate   DateTime?
 }
 
 enum Priority {
