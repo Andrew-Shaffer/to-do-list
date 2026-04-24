@@ -1,7 +1,7 @@
 import type { PrismaClient } from "../generated/client.js";
 import { Priority } from "../generated/client.js";
 import type { FastifyInstance, FastifyPluginCallback } from "fastify";
-//import type { Todo } from "../generated/client.js";
+import { sendSlackMessage, sendSlackBlock } from './services/slack.service.js';
 
 export function createRouter(prisma: PrismaClient): FastifyPluginCallback {
   return (app: FastifyInstance, _opts, done) => {
@@ -86,6 +86,11 @@ export function createRouter(prisma: PrismaClient): FastifyPluginCallback {
           dueDate: dueDate ? new Date(dueDate) : null,
         },
       });
+      //message to slack
+      const dueDateStr = newTodo.dueDate
+        ? ` (due ${newTodo.dueDate.toDateString()})`
+        : '';
+      sendSlackMessage(`New todo created: "${newTodo.title}"${dueDateStr}`).catch(console.error);
       reply.status(201).send(newTodo);
     } catch (error) {
       console.error("Failed to create todo:", error);
