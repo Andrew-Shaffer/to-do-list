@@ -12,6 +12,7 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
 });
 
+// local host port number
 const PORT = 3000;
 
 async function main(): Promise<void> {

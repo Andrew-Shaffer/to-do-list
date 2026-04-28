@@ -17,18 +17,40 @@ export function createRouter(prisma: PrismaClient): FastifyPluginCallback {
     }
   });
 
-  // GET a RANDOM todo
+  // GET a RANDOM INCOMPLETE todo
   app.get("/random", async (_req, reply) => {
     try {
       const todos = await prisma.todo.findMany();
-      if (todos.length === 0) {
-        reply.status(404).send({ error: "No todos to pick from" });
+      const sortedTodos = todos.filter(item => !item.isDone);
+      if (sortedTodos.length === 0) {
+        // Error 404: There are no to-dos on the sorted array to choose from
+        reply.status(404).send({ error: "No incomplete todos to pick from" });
         return;
       }
-      const randomIndex = Math.floor(Math.random() * todos.length);
-      reply.send(todos[randomIndex]);
+      const randomIndex = Math.floor(Math.random() * sortedTodos.length);
+      reply.send(sortedTodos[randomIndex]);
     } catch (error) {
-      console.error("Failed to fetch random todo:", error);
+      console.error("Failed to fetch random incomplete todo:", error);
+      // Error 500: A to-do was NOT fetched
+      reply.status(500).send({ error: "Failed to fetch todos" });
+    }
+  });
+
+  // GET a 'Reminisce' item, a RANDOM ALREADY COMPLETED todo
+  app.get("/reminisce", async (_req, reply) => {
+    try {
+      const todos = await prisma.todo.findMany();
+      const sortedTodos = todos.filter(item => item.isDone);
+      if (sortedTodos.length === 0) {
+        // Error 404: There are no to-dos in the sorted array to choose from
+        reply.status(404).send({ error: "No completed todos to pick from" });
+        return;
+      }
+      const randomIndex = Math.floor(Math.random() * sortedTodos.length);
+      reply.send(sortedTodos[randomIndex]);
+    } catch (error) {
+      console.error("Failed to fetch random completed todo:", error);
+      // Error 500: A to-do was NOT fetched
       reply.status(500).send({ error: "Failed to fetch todos" });
     }
   });
@@ -37,15 +59,18 @@ export function createRouter(prisma: PrismaClient): FastifyPluginCallback {
   app.get<{ Params: { id: string } }>("/:id", async (req, reply) => {
     const id = Number(req.params.id);
     if (isNaN(id)) {
+      // Error 400: The supplied ID number is not a number
       reply.status(400).send({ error: "id must be a number" });
       return;
     }
     try {
       const todo = await prisma.todo.findUnique({ where: { id } });
+      // Error 404: There is no to-do with that ID number
       if (!todo) { reply.status(404).send({ error: "Not found" }); return; }
       reply.send(todo);
     } catch (error) {
       console.error("Failed to fetch todo:", error);
+      // Error 500: A to-do was NOT fetched
       reply.status(500).send({ error: "Failed to fetch todo" });
     }
   });
@@ -55,16 +80,19 @@ export function createRouter(prisma: PrismaClient): FastifyPluginCallback {
     const { title, priority, dueDate } = req.body;
     
     if (!title || typeof title !== "string") {
+      //Error 400: Title was either not received or it is not a string
       reply.status(400).send({ error: "title is required and must be a string" });
       return;
     }
 
     if (title.trim().length === 0) {
+      //Error 400: Title is an empty string
       reply.status(400).send({ error: "title cannot be blank" });
       return;
     }
 
     if (priority !== undefined && !(priority in Priority)) {
+      // Error 400: Priority is not one of the predefined priorities
       reply.status(400).send({
         error: `priority must be one of: ${Object.keys(Priority).join(", ")}`,
       });
@@ -73,11 +101,13 @@ export function createRouter(prisma: PrismaClient): FastifyPluginCallback {
 
     if (dueDate !== undefined && isNaN(Date.parse(dueDate)))
     {
+      //Error 400: The date is not in a valid data format
       reply.status(400).send({ error: "dueDate must be a valid date string" });
       return;
     }
 
     try {
+      // Attempt to create a new to-do in the database
       const newTodo = await prisma.todo.create({
         data: {
           title: title.trim(),
@@ -86,13 +116,14 @@ export function createRouter(prisma: PrismaClient): FastifyPluginCallback {
           dueDate: dueDate ? new Date(dueDate) : null,
         },
       });
-      //message to slack
+      // Send a message to slack
       const dueDateStr = newTodo.dueDate
         ? ` (due ${newTodo.dueDate.toDateString()})`
         : '';
       sendSlackMessage(`New todo created: "${newTodo.title}"${dueDateStr}`).catch(console.error);
       reply.status(201).send(newTodo);
     } catch (error) {
+      //Error 500: To-do not created
       console.error("Failed to create todo:", error);
       reply.status(500).send({ error: "Failed to create todo" });
     }
@@ -103,15 +134,18 @@ export function createRouter(prisma: PrismaClient): FastifyPluginCallback {
   app.patch<{ Params: { id: string } }>("/:id/complete", async (req, reply) => {
     const id = Number(req.params.id);
     if (isNaN(id)) {
+      //Error 400: id number is not a number
       reply.status(400).send({ error: "id must be a number" });
       return;
     }
     if (id < 0) {
+      //Error 400: id number is a negative number
       reply.status(400).send({ error: "id number cannot be negative" });
       return;
     }
 
     try {
+      //attempt to mark the to-do at the specified ID number as completed
       const todo = await prisma.todo.update({
         where: { id },
         data: { isDone: true },
@@ -122,6 +156,7 @@ export function createRouter(prisma: PrismaClient): FastifyPluginCallback {
         reply.status(404).send({ error: "Not found" });
       } else {
         console.error("Failed to mark todo as completed:", error);
+        // Error 500: A to-do was NOT Updated
         reply.status(500).send({ error: "Failed to update todo" });
       }
     }
@@ -132,10 +167,12 @@ export function createRouter(prisma: PrismaClient): FastifyPluginCallback {
   app.delete<{ Params: { id: string } }>("/:id", async (req, reply) => {
     const id = Number(req.params.id);
     if (isNaN(id)) {
+      //Error 400: id number is not a number
       reply.status(400).send({ error: "id must be a number" });
       return;
     }
     if (id < 0) {
+      //Error 400: id number is a negative number
       reply.status(400).send({ error: "id number cannot be negative" });
       return;
     }
@@ -145,9 +182,11 @@ export function createRouter(prisma: PrismaClient): FastifyPluginCallback {
       reply.status(200).send({ deleted: id });
     } catch (error: any) {
       if (error?.code === "P2025") {
+        // Error 404: To-do with the specified ID not found
         reply.status(404).send({ error: "Not found" });
       } else {
         console.error("Failed to delete todo:", error);
+        // Error 500: A to-do was NOT deleted
         reply.status(500).send({ error: "Failed to delete todo" });
       }
     }
