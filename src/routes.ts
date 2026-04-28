@@ -1,3 +1,4 @@
+/*
 import type { PrismaClient } from "../generated/client.js";
 import { Priority } from "../generated/client.js";
 import type { FastifyInstance, FastifyPluginCallback } from "fastify";
@@ -194,3 +195,5 @@ export function createRouter(prisma: PrismaClient): FastifyPluginCallback {
   done();
   }
 }
+
+*/
