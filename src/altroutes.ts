@@ -182,7 +182,7 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
             const { id } = request.params;
             const idNumber = Number(id);
             //error check: make sure id is a non-negative number
-            if(typeof idNumber !== 'number'){
+            if(isNaN(idNumber)){
                 console.log("id must be a number")
                 return;
             }
@@ -195,12 +195,13 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                 //THERE IS A PROBLEM HERE (I THINK), we are using two different id, the array element and the id number prisma parameter......
 
                 //use prisma to delete the array element with the error-checked id number
-                await prisma.todo.delete({
+                const deletion = await prisma.todo.delete({
                     where: {
-                        id: Number(idNumber),
+                        id: idNumber,
                     },
                 });
                 console.log("element deleted from array with id number: " + idNumber);
+                return deletion;
             }
             catch(error){
                 console.log(error);
