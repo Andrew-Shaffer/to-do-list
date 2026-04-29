@@ -1,9 +1,7 @@
-import { application, Router } from "express";
 import type { PrismaClient } from "../generated/client.js";
 import { Priority } from "../generated/client.js";
 import type { FastifyInstance, FastifyPluginCallback } from "fastify";
-import { Id } from "@slack/web-api/dist/types/response/RtmStartResponse.js";
-import { todo } from "node:test";
+import { sendSlackMessage } from './services/slack.service.js';
 
 //open a connection using fastify and pass along prisma client
 export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
@@ -91,7 +89,7 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
         });
 
         //POST route "/" adds a new incomplete to-do to the list
-        andrewsApp.post<{ Body: { title: string, priority: string, dueDate: string } }>("/", async (request, reply) => {
+        andrewsApp.post<{ Body: { title: string, priority: string, dueDate: Date } }>("/", async (request, reply) => {
             //receive a string for title, a string for priority (must be either "High", "Medium", or "Low"), and a string for date
             
             //error check the data:
@@ -119,10 +117,9 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
             }
 
             // date must be valid JS date string
-            const todoDate = request.body.dueDate;
-            const fixDate = Date.parse(todoDate);
-            if(isNaN(fixDate)){
-                console.log("error: due date not parsed, please ensure you have passed along a valid datestring for the due date");
+            const todoDate = request.body.dueDate as Date;
+            if(false){
+                console.log("error: valid due date not detected, please ensure you have passed along a valid datestring for the due date");
                 return;
             }
 
@@ -137,9 +134,11 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                     // Mark the new todo as not being complete, so isDone === false
                     isDone : false
                     },
-                });                
+                });             
+                return newTodo;   
             }
             catch(error){
+                sendSlackMessage("error: POST route").catch(console.error);
                 console.log(error);
                 return error;
             }
@@ -173,6 +172,7 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
             }
             catch(error){
                 console.log(error);
+                sendSlackMessage("error: PATCH route").catch(console.error);
                 return error;
             }
         });
@@ -205,6 +205,7 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
             }
             catch(error){
                 console.log(error);
+                sendSlackMessage("error: DELETE route").catch(console.error);
                 return error;
             }
         });
