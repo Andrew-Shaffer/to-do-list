@@ -89,7 +89,7 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
         });
 
         //POST route "/" adds a new incomplete to-do to the list
-        andrewsApp.post<{ Body: { title: string, priority: string, dueDate: Date } }>("/", async (request, reply) => {
+        andrewsApp.post<{ Body: { title: string, priority: string, dueDate: string } }>("/", async (request, reply) => {
             //receive a string for title, a string for priority (must be either "High", "Medium", or "Low"), and a string for date
             
             //error check the data:
@@ -117,8 +117,8 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
             }
 
             // date must be valid JS date string
-            const todoDate = request.body.dueDate as Date;
-            if(false){
+            const todoDate = new Date(request.body.dueDate);
+            if(isNaN(todoDate.getTime())){ //The code here does not work, but this should check if the datestring is valid
                 console.log("error: valid due date not detected, please ensure you have passed along a valid datestring for the due date");
                 return;
             }
