@@ -1,4 +1,5 @@
-import type { PrismaClient } from "../generated/client.js";
+import { PrismaClient } from "../generated/client.js";
+import { Prisma } from "../generated/client.js";
 import { Priority } from "../generated/client.js";
 import type { FastifyInstance, FastifyPluginCallback } from "fastify";
 import { sendSlackMessage } from './services/slack.service.js';
@@ -13,15 +14,20 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                 try{
                     //Create an list of to-dos with prisma
                     const manyTodos = await prisma.todo.findMany();
+                    //Check to make sure there are to-dos found
+                    if(manyTodos.length === 0){
+                    //return a 404 error if no todos are found
+                    return reply.status(404).send("error: no incomplete to-dos found")
+                }
                     //return the list
                     return manyTodos;
                 }
                 catch(error){
                     //Display potential errors
                     console.log(error);
-                    return error;
+                    return reply.status(500).send("Server error");
                 }
-            });
+        });
 
         //GET route "/random" returns a random incomplete to-do
         andrewsApp.get("/random", async (request, reply) => {
@@ -31,6 +37,11 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                 const manyTodos = await prisma.todo.findMany();
                 //create a new array of the same to-dos with completed to-dos omitted
                 const sortedTodos = manyTodos.filter(item => !item.isDone);
+                //are there any todos here still?
+                if(sortedTodos.length === 0){
+                    //return a 404 error if no todos are found
+                    return reply.status(404).send("error: no incomplete to-dos found")
+                }
                 //generate a random index number within the length of the array 
                 const randomNum : number = Math.floor(Math.random() * sortedTodos.length);
                 //use the index to find a random element and return it
@@ -38,7 +49,7 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
             }
             catch (error) {
                 console.log(error);
-                return error;
+                return reply.status(500).send("Server error");
             }            
         });
         
@@ -51,6 +62,11 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                 const manyTodos = await prisma.todo.findMany();
                 //create a new array of the same to-dos with incomplete to-dos omitted
                 const sortedTodos = manyTodos.filter(item => item.isDone);
+                //are there any todos here still?
+                if(sortedTodos.length === 0){
+                    //return a 404 error if no todos are found
+                    return reply.status(404).send("error: no completed to-dos found")
+                }
                 //generate a random index number within the length of the array 
                 const randomNum : number = Math.floor(Math.random() * sortedTodos.length);
                 //use the index to find a random element and return it
@@ -58,33 +74,34 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
             }
             catch (error) {
                 console.log(error);
-                return error;
+                return reply.status(500).send("Server error");
             }            
         });
 
         //GET route "/:id" returns the to-do with the id number that is passed along
         andrewsApp.get<{ Params: { id: string } }>('/:id', async (request, reply) => {
-            const { id } = request.params;
-            const idNumber = Number(id);
+            const idNumber = Number(request.params.id);
             //error check: make sure id is a non-negative number
-            if(typeof idNumber !== 'number'){
+            if(isNaN(idNumber)){
                 console.log("error: id must be a number")
-                return;
+                return reply.status(400).send("error: id is not a number");
             }
-            else if(idNumber < 0){
+            else if(Number(idNumber) <= 0){
                 console.log("error: id must be a non-negative number")
-                return;
+                return reply.status(400).send("error: id must be a non-negative number");
             }
             //try/catch block
             try{
-                //create an array of to-dos with prisma client
-                const manyTodos = await prisma.todo.findMany();
-                //return the to-do with the correct requested id number
-                return manyTodos[idNumber];
+                //Find unique to-do with prisma client
+                const myTodo = await prisma.todo.findUnique({
+                        where: {id: idNumber}
+                });
+                //return the to-do with the requested id number
+                return myTodo;
             }
             catch(error){
                 console.log(error);
-                return error;
+                return reply.status(500).send("Server error");
             }
         });
 
@@ -92,13 +109,21 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
         andrewsApp.post<{ Body: { title: string, priority: string, dueDate: string } }>("/", async (request, reply) => {
             //receive a string for title, a string for priority (must be either "High", "Medium", or "Low"), and a string for date
             
-            //error check the data:
+            //error check the data:            
+            if(!request.body){
+                return reply.status(400).send("error: request body is required");
+            }
+
+            if(typeof request.body !== 'object'){
+                return reply.status(400).send("error: body is not an object");
+            }
+
             // Title must exist and be a string
             const postTitle = request.body.title;
 
             if(typeof postTitle !== 'string'){
                 console.log("error: to-do title must be a string");
-                return;
+                return reply.status(400).send("error: invalid title for to-do");
             }
 
             // priority must exist and match our schema: it must be one of either "High", "Medium", or "Low"
@@ -107,20 +132,21 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
             //check priority string:
             if(todoPriority !== "High" && todoPriority !== "Medium" && todoPriority !== "Low"){                
                 console.log("error: priority MUST be one of either 'Low', 'Medium', or 'High'");
-                return;
+                return reply.status(400).send("error: priority MUST be one of either 'Low', 'Medium', or 'High'");
             }
-            //redundancy I think. I still added to help myself learn.
+            /*
+            //redundancy I think. I included to help myself learn.
             const validPriority = Object.values(Priority).includes(todoPriority as Priority);            
             if(!validPriority){
                 console.log("error, invalid priority");
-                return;
+                return reply.status(400).send("error: invalid priority");
             }
-
+            */
             // date must be valid JS date string
             const todoDate = new Date(request.body.dueDate);
             if(isNaN(todoDate.getTime())){ //The code here does not work, but this should check if the datestring is valid
                 console.log("error: valid due date not detected, please ensure you have passed along a valid datestring for the due date");
-                return;
+                return reply.status(400).send("error: invalid datestring");
             }
 
             //try/catch block
@@ -138,9 +164,9 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                 return newTodo;   
             }
             catch(error){
-                sendSlackMessage("error: POST route").catch(console.error);
                 console.log(error);
-                return error;
+                sendSlackMessage("error: POST route").catch(console.error);
+                return reply.status(500).send("Server error");
             }
         });
 
@@ -150,11 +176,11 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
             const idNumber = Number(request.params.id);
             if(isNaN(idNumber)){
                 console.log("id must be a number")
-                return;
+                return reply.status(400).send("error: id must be a number");
             }
             else if(idNumber < 0){
                 console.log("id must be a non-negative number")
-                return;
+                return reply.status(400).send("error: id must be a non-negative number");
             }
 
             //try/catch block
@@ -171,9 +197,16 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                 return newchange;
             }
             catch(error){
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                    // TypeScript now knows 'e' is a PrismaClientKnownRequestError
+                    if (error.code === 'P2025') {
+                    console.log('Record was not found');
+                    return reply.status(404).send("No record found to update");
+                    }
+                }
                 console.log(error);
                 sendSlackMessage("error: PATCH route").catch(console.error);
-                return error;
+                return reply.status(500).send("Server error");
             }
         });
 
@@ -184,16 +217,14 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
             //error check: make sure id is a non-negative number
             if(isNaN(idNumber)){
                 console.log("id must be a number")
-                return;
+                return reply.status(400).send("error: id must be a number");
             }
             else if(idNumber < 0){
                 console.log("id must be a non-negative number")
-                return;
+                return reply.status(400).send("error: id must be a non-negative number");
             }
             //try/catch block
             try{
-                //THERE IS A PROBLEM HERE (I THINK), we are using two different id, the array element and the id number prisma parameter......
-
                 //use prisma to delete the array element with the error-checked id number
                 const deletion = await prisma.todo.delete({
                     where: {
@@ -204,9 +235,16 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                 return deletion;
             }
             catch(error){
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                // TypeScript now knows 'e' is a PrismaClientKnownRequestError
+                if (error.code === 'P2025') {
+                    console.log('Record was not found for deletion');
+                    return reply.status(404).send("No record found to delete");
+                    }
+                }
                 console.log(error);
                 sendSlackMessage("error: DELETE route").catch(console.error);
-                return error;
+                return reply.status(500).send("Server error");
             }
         });
         done();
