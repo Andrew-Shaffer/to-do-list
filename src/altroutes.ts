@@ -2,14 +2,15 @@ import { application, Router } from "express";
 import type { PrismaClient } from "../generated/client.js";
 import { Priority } from "../generated/client.js";
 import type { FastifyInstance, FastifyPluginCallback } from "fastify";
-import type { Id } from "@slack/web-api/dist/types/response/RtmStartResponse.js";
+import { Id } from "@slack/web-api/dist/types/response/RtmStartResponse.js";
+import { todo } from "node:test";
 
 //open a connection using fastify and pass along prisma client
 export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
     return (andrewsApp: FastifyInstance, _opts, done) => {
         
         //GET route "/all" return a list of all to-dos
-        andrewsApp.get("/all", async (request, reply) => {
+        andrewsApp.get("/", async (request, reply) => {
                 // function carries risk, wrap in try/catch block
                 try{
                     //Create an list of to-dos with prisma
@@ -69,11 +70,11 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
             const idNumber = Number(id);
             //error check: make sure id is a non-negative number
             if(typeof idNumber !== 'number'){
-                console.log("id must be a number")
+                console.log("error: id must be a number")
                 return;
             }
             else if(idNumber < 0){
-                console.log("id must be a non-negative number")
+                console.log("error: id must be a non-negative number")
                 return;
             }
             //try/catch block
@@ -88,22 +89,93 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                 return error;
             }
         });
+
         //POST route "/" adds a new incomplete to-do to the list
+        andrewsApp.post<{ Body: { title: string, priority: string, dueDate: string } }>("/", async (request, reply) => {
             //receive a string for title, a string for priority (must be either "High", "Medium", or "Low"), and a string for date
+            
             //error check the data:
             // Title must exist and be a string
+            const postTitle = request.body.title;
+
+            if(typeof postTitle !== 'string'){
+                console.log("error: to-do title must be a string");
+                return;
+            }
+
             // priority must exist and match our schema: it must be one of either "High", "Medium", or "Low"
+            const todoPriority = request.body.priority;
+
+            //check priority string:
+            if(todoPriority !== "High" && todoPriority !== "Medium" && todoPriority !== "Low"){                
+                console.log("error: priority MUST be one of either 'Low', 'Medium', or 'High'");
+                return;
+            }
+            //redundancy I think. I still added to help myself learn.
+            const validPriority = Object.values(Priority).includes(todoPriority as Priority);            
+            if(!validPriority){
+                console.log("error, invalid priority");
+                return;
+            }
+
             // date must be valid JS date string
+            const todoDate = request.body.dueDate;
+            const fixDate = Date.parse(todoDate);
+            if(isNaN(fixDate)){
+                console.log("error: due date not parsed, please ensure you have passed along a valid datestring for the due date");
+                return;
+            }
 
             //try/catch block
-            // use prisma to add a new element to the database with the selected strings as parameters, and isDone set to false
+            try{
+                // use prisma to add a new element to the database with the selected strings as parameters, and isDone set to false
+                const newTodo = await prisma.todo.create({
+                    data: {
+                    title: postTitle, 
+                    priority : todoPriority,
+                    dueDate : todoDate,
+                    // Mark the new todo as not being complete, so isDone === false
+                    isDone : false
+                    },
+                });                
+            }
+            catch(error){
+                console.log(error);
+                return error;
+            }
+        });
 
         //PATCH route "/:id/complete" marks a to do with id number as completed by setting isDone to true
+        andrewsApp.patch<{ Params: { id: string } }>('/:id/complete', async (request, reply) => {
             //error check: make sure id is a non-negative number
+            const idNumber = Number(request.params.id);
+            if(isNaN(idNumber)){
+                console.log("id must be a number")
+                return;
+            }
+            else if(idNumber < 0){
+                console.log("id must be a non-negative number")
+                return;
+            }
+
             //try/catch block
-            //create an array of to-dos with prisma client
-            //find reference to the correct id number
-            //change that array element so that isDone = true
+            try{
+                //use reference to the correct id number
+                //change that array element so that isDone = true
+                const newchange = await prisma.todo.update(
+                {
+                    where: { id: idNumber },
+                    data: { isDone: true}
+                });
+
+                console.log("Data operation complete");
+                return newchange;
+            }
+            catch(error){
+                console.log(error);
+                return error;
+            }
+        });
 
         //DELETE route "/:id" deletes the to-do with the supplied id number
         andrewsApp.delete<{ Params: { id: string } }>('/:id', async (request, reply) => {
