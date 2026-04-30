@@ -1,6 +1,5 @@
 import { PrismaClient } from "../generated/client.js";
 import { Prisma } from "../generated/client.js";
-import { Priority } from "../generated/client.js";
 import type { FastifyInstance, FastifyPluginCallback } from "fastify";
 import { sendSlackMessage } from './services/slack.service.js';
 
@@ -14,17 +13,13 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                 try{
                     //Create an list of to-dos with prisma
                     const manyTodos = await prisma.todo.findMany();
-                    //Check to make sure there are to-dos found
-                    if(manyTodos.length === 0){
-                    //return a 404 error if no todos are found
-                    return reply.status(404).send("error: no incomplete to-dos found")
-                }
                     //return the list
                     return manyTodos;
                 }
                 catch(error){
                     //Display potential errors
                     console.log(error);
+                    sendSlackMessage("error: GET/ route").catch(console.error);
                     return reply.status(500).send("Server error");
                 }
         });
@@ -34,21 +29,25 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
             //try/catch block
             try{
                 //create an array of to-dos with prisma client
-                const manyTodos = await prisma.todo.findMany();
+                const manyTodos = await prisma.todo.findMany(
+                    //filter out completed elements in array
+                    {where: {isDone: false}}
+                );
                 //create a new array of the same to-dos with completed to-dos omitted
-                const sortedTodos = manyTodos.filter(item => !item.isDone);
+                //const sortedTodos = manyTodos.filter(item => !item.isDone);
                 //are there any todos here still?
-                if(sortedTodos.length === 0){
-                    //return a 404 error if no todos are found
-                    return reply.status(404).send("error: no incomplete to-dos found")
+                if(manyTodos.length === 0){
+                    //return a 404 error message if no todos are found
+                    return reply.status(404).send("no incomplete to-dos found");
                 }
                 //generate a random index number within the length of the array 
-                const randomNum : number = Math.floor(Math.random() * sortedTodos.length);
+                const randomNum : number = Math.floor(Math.random() * manyTodos.length);
                 //use the index to find a random element and return it
-                return sortedTodos[randomNum];
+                return manyTodos[randomNum];
             }
             catch (error) {
                 console.log(error);
+                sendSlackMessage("error: GET random route").catch(console.error);
                 return reply.status(500).send("Server error");
             }            
         });
@@ -59,21 +58,25 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
             //try/catch block
             try{
                 //create an array of to-dos with prisma client
-                const manyTodos = await prisma.todo.findMany();
+                const manyTodos = await prisma.todo.findMany(
+                    //filter out incomplete elements from array
+                    {where: {isDone: true}}
+                );
                 //create a new array of the same to-dos with incomplete to-dos omitted
-                const sortedTodos = manyTodos.filter(item => item.isDone);
+                //const sortedTodos = manyTodos.filter(item => item.isDone);
                 //are there any todos here still?
-                if(sortedTodos.length === 0){
+                if(manyTodos.length === 0){
                     //return a 404 error if no todos are found
-                    return reply.status(404).send("error: no completed to-dos found")
+                    return reply.status(404).send("no completed to-dos found");
                 }
                 //generate a random index number within the length of the array 
-                const randomNum : number = Math.floor(Math.random() * sortedTodos.length);
+                const randomNum : number = Math.floor(Math.random() * manyTodos.length);
                 //use the index to find a random element and return it
-                return sortedTodos[randomNum];
+                return manyTodos[randomNum];
             }
             catch (error) {
                 console.log(error);
+                sendSlackMessage("error: GET reminisce route").catch(console.error);
                 return reply.status(500).send("Server error");
             }            
         });
@@ -87,8 +90,8 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                 return reply.status(400).send("error: id is not a number");
             }
             else if(Number(idNumber) <= 0){
-                console.log("error: id must be a non-negative number")
-                return reply.status(400).send("error: id must be a non-negative number");
+                console.log("error: id must be a number greater than zero")
+                return reply.status(400).send("error: id must be a number greater than zero");
             }
             //try/catch block
             try{
@@ -96,11 +99,17 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                 const myTodo = await prisma.todo.findUnique({
                         where: {id: idNumber}
                 });
+
+                //Check to make sure a to-do was found
+                if(myTodo === null){
+                    return reply.status(404).send("error: no to-dos found");
+                }
                 //return the to-do with the requested id number
                 return myTodo;
             }
             catch(error){
                 console.log(error);
+                sendSlackMessage("error: GET id route").catch(console.error);
                 return reply.status(500).send("Server error");
             }
         });
@@ -113,16 +122,20 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
             if(!request.body){
                 return reply.status(400).send("error: request body is required");
             }
-
+            /* 
             if(typeof request.body !== 'object'){
                 return reply.status(400).send("error: body is not an object");
             }
-
+            */
             // Title must exist and be a string
             const postTitle = request.body.title;
 
             if(typeof postTitle !== 'string'){
                 console.log("error: to-do title must be a string");
+                return reply.status(400).send("error: invalid title for to-do");
+            }
+            if(postTitle.trim() === ''){
+                console.log("error: to-do title must be a string containing characters");
                 return reply.status(400).send("error: invalid title for to-do");
             }
 
@@ -142,9 +155,17 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                 return reply.status(400).send("error: invalid priority");
             }
             */
+
             // date must be valid JS date string
-            const todoDate = new Date(request.body.dueDate);
-            if(isNaN(todoDate.getTime())){ //The code here does not work, but this should check if the datestring is valid
+            //check that it is a string
+            const rawDate = request.body.dueDate;
+            if (typeof rawDate !== 'string' || rawDate.trim() === '') {
+                console.log("error: supplied date is not a proper string")
+                return reply.status(400).send("error, please supply a due date");
+            }
+            //check that the string is a valid date
+            const todoDate = new Date(rawDate);
+            if(isNaN(todoDate.getTime())){ 
                 console.log("error: valid due date not detected, please ensure you have passed along a valid datestring for the due date");
                 return reply.status(400).send("error: invalid datestring");
             }
@@ -178,9 +199,9 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                 console.log("id must be a number")
                 return reply.status(400).send("error: id must be a number");
             }
-            else if(idNumber < 0){
+            else if(idNumber <= 0){
                 console.log("id must be a non-negative number")
-                return reply.status(400).send("error: id must be a non-negative number");
+                return reply.status(400).send("error: id must be a number greater than zero");
             }
 
             //try/catch block
@@ -219,9 +240,9 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                 console.log("id must be a number")
                 return reply.status(400).send("error: id must be a number");
             }
-            else if(idNumber < 0){
-                console.log("id must be a non-negative number")
-                return reply.status(400).send("error: id must be a non-negative number");
+            else if(idNumber <= 0){
+                console.log("id must be a number greater than zero")
+                return reply.status(400).send("id must be a number greater than zero");
             }
             //try/catch block
             try{
@@ -236,7 +257,8 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
             }
             catch(error){
                 if (error instanceof Prisma.PrismaClientKnownRequestError) {
-                // TypeScript now knows 'e' is a PrismaClientKnownRequestError
+                // TypeScript now knows 'error' is a PrismaClientKnownRequestError
+                // Test for error code P2025: 
                 if (error.code === 'P2025') {
                     console.log('Record was not found for deletion');
                     return reply.status(404).send("No record found to delete");
