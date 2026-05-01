@@ -1,7 +1,8 @@
-import { PrismaClient } from "../generated/client.js";
+import { Priority, PrismaClient } from "../generated/client.js";
 import { Prisma } from "../generated/client.js";
-import type { FastifyInstance, FastifyPluginCallback } from "fastify";
+import type { FastifyInstance, FastifyPluginCallback, RequestQuerystringDefault } from "fastify";
 import { sendSlackMessage } from './services/slack.service.js';
+import { PRIORITIES } from "./enums.js";
 
 //open a connection using fastify and pass along prisma client
 export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
@@ -24,21 +25,33 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                 }
         });
 
-        //GET route "/random" returns a random incomplete to-do
-        andrewsApp.get("/random", async (request, reply) => {
+        //GET route "/random" returns a random to-do
+        andrewsApp.get<{ Querystring: { iscomplete: string, priorityrequest: Priority } }>("/random/", {
+            schema: {
+                querystring:{
+                    type: 'object', required: ['iscomplete'],
+                    properties:{
+                        iscomplete: {type: 'string'},
+                        priorityrequest: { type: "string", enum: PRIORITIES }
+                    }
+                }
+            }
+        }, async (request, reply) => {
             //try/catch block
             try{
+                const priorityData = request.query.priorityrequest;
+                const filter = request.query.iscomplete === "true";
                 //create an array of to-dos with prisma client
                 const manyTodos = await prisma.todo.findMany(
-                    //filter out completed elements in array
-                    {where: {isDone: false}}
+                    //filter out elements in array based on whether the user wanted completed or incomplete elements, AND based on what priority requested
+                    {where: { isDone: filter , priority : priorityData}}
                 );
                 //create a new array of the same to-dos with completed to-dos omitted
                 //const sortedTodos = manyTodos.filter(item => !item.isDone);
                 //are there any todos here still?
                 if(manyTodos.length === 0){
                     //return a 404 error message if no todos are found
-                    return reply.status(404).send("no incomplete to-dos found");
+                    return reply.status(404).send("no to-dos found for request");
                 }
                 //generate a random index number within the length of the array 
                 const randomNum : number = Math.floor(Math.random() * manyTodos.length);
@@ -52,35 +65,6 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
             }            
         });
         
-        //GET route "/reminisce" returns a random already completed to-do
-        //Same logic as before but this time with incomplete items omitted
-        andrewsApp.get("/reminisce", async (request, reply) => {
-            //try/catch block
-            try{
-                //create an array of to-dos with prisma client
-                const manyTodos = await prisma.todo.findMany(
-                    //filter out incomplete elements from array
-                    {where: {isDone: true}}
-                );
-                //create a new array of the same to-dos with incomplete to-dos omitted
-                //const sortedTodos = manyTodos.filter(item => item.isDone);
-                //are there any todos here still?
-                if(manyTodos.length === 0){
-                    //return a 404 error if no todos are found
-                    return reply.status(404).send("no completed to-dos found");
-                }
-                //generate a random index number within the length of the array 
-                const randomNum : number = Math.floor(Math.random() * manyTodos.length);
-                //use the index to find a random element and return it
-                return manyTodos[randomNum];
-            }
-            catch (error) {
-                console.log(error);
-                sendSlackMessage("error: GET reminisce route").catch(console.error);
-                return reply.status(500).send("Server error");
-            }            
-        });
-
         //GET route "/:id" returns the to-do with the id number that is passed along
         andrewsApp.get<{ Params: { id: string } }>('/:id', async (request, reply) => {
             const idNumber = Number(request.params.id);
@@ -101,7 +85,7 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
                 });
 
                 //Check to make sure a to-do was found
-                if(myTodo === null){
+                if(!myTodo){
                     return reply.status(404).send("error: no to-dos found");
                 }
                 //return the to-do with the requested id number
@@ -115,52 +99,44 @@ export function andrewsNewRoutes(prisma: PrismaClient): FastifyPluginCallback {
         });
 
         //POST route "/" adds a new incomplete to-do to the list
-        andrewsApp.post<{ Body: { title: string, priority: string, dueDate: string } }>("/", async (request, reply) => {
+        andrewsApp.post<{ Body: { title: string, priority: Priority, dueDate: string } }>("/", {
+            schema: {
+                body:{
+                    type: 'object', required: ["title", "priority", "dueDate"],
+                    properties:{
+                        title: {type: 'string'},
+                        priority: { type: "string", enum: PRIORITIES },
+                        dueDate: {type: 'string'}
+                    }
+                }
+            }
+        },async (request, reply) => {
             //receive a string for title, a string for priority (must be either "High", "Medium", or "Low"), and a string for date
             
             //error check the data:            
             if(!request.body){
                 return reply.status(400).send("error: request body is required");
             }
-            /* 
-            if(typeof request.body !== 'object'){
-                return reply.status(400).send("error: body is not an object");
-            }
-            */
             // Title must exist and be a string
-            const postTitle = request.body.title;
-
-            if(typeof postTitle !== 'string'){
-                console.log("error: to-do title must be a string");
-                return reply.status(400).send("error: invalid title for to-do");
-            }
-            if(postTitle.trim() === ''){
+            const getTitle = request.body.title;
+            const postTitle = getTitle.trim();
+            if(!postTitle){
                 console.log("error: to-do title must be a string containing characters");
                 return reply.status(400).send("error: invalid title for to-do");
             }
 
             // priority must exist and match our schema: it must be one of either "High", "Medium", or "Low"
             const todoPriority = request.body.priority;
-
             //check priority string:
             if(todoPriority !== "High" && todoPriority !== "Medium" && todoPriority !== "Low"){                
                 console.log("error: priority MUST be one of either 'Low', 'Medium', or 'High'");
                 return reply.status(400).send("error: priority MUST be one of either 'Low', 'Medium', or 'High'");
             }
-            /*
-            //redundancy I think. I included to help myself learn.
-            const validPriority = Object.values(Priority).includes(todoPriority as Priority);            
-            if(!validPriority){
-                console.log("error, invalid priority");
-                return reply.status(400).send("error: invalid priority");
-            }
-            */
-
             // date must be valid JS date string
-            //check that it is a string
-            const rawDate = request.body.dueDate;
-            if (typeof rawDate !== 'string' || rawDate.trim() === '') {
-                console.log("error: supplied date is not a proper string")
+            const getDate = request.body.dueDate;
+            const rawDate = getDate.trim();
+            if (rawDate === '') {
+                console.log("error: supplied date is not a properly configured");
                 return reply.status(400).send("error, please supply a due date");
             }
             //check that the string is a valid date
