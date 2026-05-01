@@ -3,7 +3,7 @@ import { PrismaClient } from "../generated/client.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 //import { createRouter } from "./routes.js";
 import Fastify from 'fastify'
-import { andrewsNewRoutes } from "./altroutes.js";
+import { andrewsNewRoutes } from "../build/altroutes.js";
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is not set in your environment");

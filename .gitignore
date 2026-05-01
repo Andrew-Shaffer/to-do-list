@@ -14,3 +14,4 @@ prisma.config.js
 prisma.config.js.map
 prisma.config.d.ts
 prisma.config.d.ts.map
+build
